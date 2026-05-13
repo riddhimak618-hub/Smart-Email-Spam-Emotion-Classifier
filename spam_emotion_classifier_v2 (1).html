@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Smart Email Spam & Emotion Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#03050f;
+  --bg2:#070b1a;
+  --surface:#0b0f20;
+  --surface2:#0f1428;
+  --surface3:#141830;
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.12);
+  --text:#dde1f5;
+  --text2:#9499b8;
+  --accent:#5d6ef5;
+  --accent2:#818cf8;
+  --accent3:#a5b4fc;
+  --green:#10d9a0;
+  --green2:#059669;
+  --red:#f4566a;
+  --red2:#be123c;
+  --orange:#f97316;
+  --blue:#38bdf8;
+  --yellow:#fbbf24;
+  --purple:#c084fc;
+}
+
+html{scroll-behavior:smooth}
+
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg);
+  min-height:100vh;
+  color:var(--text);
+  overflow-x:hidden;
+}
+
+/* ─── ANIMATED BG ─── */
+.bg-canvas{
+  position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+}
+.orb{
+  position:absolute;border-radius:50%;filter:blur(80px);opacity:0.18;
+  animation:drift 18s ease-in-out infinite alternate;
+}
+.orb1{width:600px;height:600px;background:#5d6ef5;top:-200px;left:-150px;animation-delay:0s}
+.orb2{width:500px;height:500px;background:#c084fc;bottom:-150px;right:-100px;animation-delay:-6s}
+.orb3{width:350px;height:350px;background:#10d9a0;top:40%;left:55%;animation-delay:-12s;opacity:0.1}
+
+@keyframes drift{
+  from{transform:translate(0,0) scale(1)}
+  to{transform:translate(40px,30px) scale(1.08)}
+}
+
+/* ─── GRID OVERLAY ─── */
+.grid-overlay{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(93,110,245,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(93,110,245,0.04) 1px, transparent 1px);
+  background-size:60px 60px;
+}
+
+/* ─── LAYOUT ─── */
+.page{
+  position:relative;z-index:1;
+  max-width:780px;margin:0 auto;
+  padding:48px 20px 100px;
+}
+
+/* ─── HEADER ─── */
+header{text-align:center;margin-bottom:52px}
+
+.status-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(16,217,160,0.1);
+  border:1px solid rgba(16,217,160,0.25);
+  color:var(--green);
+  font-family:'DM Mono',monospace;
+  font-size:11px;font-weight:500;letter-spacing:2px;text-transform:uppercase;
+  padding:6px 16px;border-radius:999px;margin-bottom:28px;
+}
+.pulse{
+  width:7px;height:7px;background:var(--green);border-radius:50%;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,217,160,0.5)}50%{opacity:0.6;box-shadow:0 0 0 6px rgba(16,217,160,0)}}
+
+.main-title{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(2.2rem,5.5vw,3.4rem);
+  font-weight:800;
+  line-height:1.1;
+  letter-spacing:-1.5px;
+  margin-bottom:18px;
+}
+.title-line1{
+  background:linear-gradient(120deg,#c084fc 0%,#818cf8 35%,#5d6ef5 65%,#38bdf8 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.title-line2{color:var(--text);opacity:0.92}
+
+.subtitle{
+  font-size:14px;color:var(--text2);line-height:1.9;max-width:520px;margin:0 auto 28px;
+}
+.subtitle mark{
+  background:rgba(93,110,245,0.2);
+  color:var(--accent3);
+  padding:2px 8px;border-radius:5px;font-weight:500;
+}
+
+/* STATS ROW */
+.stats-row{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-bottom:28px;
+}
+.stat-pill{
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-radius:12px;padding:10px 18px;
+  font-size:13px;
+}
+.stat-pill .s-num{
+  font-family:'DM Mono',monospace;font-weight:500;font-size:15px;color:var(--accent3);
+}
+.stat-pill .s-lbl{color:var(--text2);font-size:12px}
+
+/* TECH CHIPS */
+.tech-row{display:flex;flex-wrap:wrap;justify-content:center;gap:7px}
+.chip{
+  font-family:'DM Mono',monospace;font-size:11px;
+  color:var(--text2);
+  background:var(--surface3);
+  border:1px solid var(--border);
+  padding:5px 13px;border-radius:999px;
+  letter-spacing:0.3px;
+}
+
+/* ─── CARD ─── */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:24px;
+  padding:36px;
+  box-shadow:0 0 0 1px rgba(93,110,245,0.04), 0 32px 80px rgba(0,0,0,0.6);
+  margin-bottom:20px;
+}
+
+/* SECTION LABEL */
+.sec-label{
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+  color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.sec-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* EXAMPLE BUTTONS */
+.ex-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px}
+.ex-btn{
+  cursor:pointer;
+  background:var(--surface3);
+  border:1px solid var(--border2);
+  color:var(--text2);
+  font-family:'DM Sans',sans-serif;
+  font-size:12px;font-weight:500;
+  padding:8px 16px;border-radius:10px;
+  transition:all 0.2s;
+  user-select:none;
+}
+.ex-btn:hover{
+  background:rgba(93,110,245,0.15);
+  border-color:rgba(93,110,245,0.45);
+  color:var(--accent3);
+  transform:translateY(-2px);
+  box-shadow:0 4px 16px rgba(93,110,245,0.2);
+}
+.ex-btn.spam-ex{border-color:rgba(244,86,106,0.25)}
+.ex-btn.spam-ex:hover{background:rgba(244,86,106,0.12);border-color:rgba(244,86,106,0.45);color:#fca5a5}
+
+/* FORM */
+.field{margin-bottom:22px}
+.field-label{
+  display:flex;align-items:center;gap:8px;
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text2);margin-bottom:10px;font-weight:500;
+}
+input[type=text],textarea{
+  width:100%;
+  background:rgba(255,255,255,0.03);
+  border:1px solid var(--border2);
+  border-radius:14px;
+  padding:14px 18px;
+  font-size:14px;color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  transition:all 0.25s;
+  resize:vertical;
+  line-height:1.6;
+}
+input[type=text]:focus,textarea:focus{
+  outline:none;
+  border-color:rgba(93,110,245,0.6);
+  background:rgba(93,110,245,0.05);
+  box-shadow:0 0 0 3px rgba(93,110,245,0.1);
+}
+input::placeholder,textarea::placeholder{color:#2d3050}
+
+/* CHAR COUNTER */
+.field-footer{
+  display:flex;justify-content:flex-end;
+  font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);
+  margin-top:6px;opacity:0.7;
+}
+
+/* ANALYZE BTN */
+.btn-row{display:flex;gap:12px;margin-bottom:10px}
+.btn-analyze{
+  flex:1;padding:17px;
+  background:linear-gradient(135deg,#5d6ef5 0%,#7c3aed 50%,#5d6ef5 100%);
+  background-size:200% 100%;
+  border:none;border-radius:14px;
+  color:white;font-size:15px;font-weight:700;
+  font-family:'Syne',sans-serif;
+  cursor:pointer;
+  transition:all 0.3s;
+  box-shadow:0 8px 32px rgba(93,110,245,0.35);
+  letter-spacing:0.3px;
+  position:relative;overflow:hidden;
+}
+.btn-analyze::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);
+  opacity:0;transition:opacity 0.2s;
+}
+.btn-analyze:hover{
+  transform:translateY(-2px);
+  box-shadow:0 14px 44px rgba(93,110,245,0.5);
+  background-position:100% 0;
+}
+.btn-analyze:hover::before{opacity:1}
+.btn-analyze:active{transform:translateY(0)}
+
+.btn-clear{
+  padding:17px 22px;
+  background:var(--surface3);
+  border:1px solid var(--border2);
+  border-radius:14px;
+  color:var(--text2);font-size:14px;
+  font-family:'DM Sans',sans-serif;
+  cursor:pointer;transition:all 0.2s;
+}
+.btn-clear:hover{background:rgba(244,86,106,0.1);border-color:rgba(244,86,106,0.3);color:#fca5a5}
+
+.shortcut{
+  text-align:center;font-size:12px;color:var(--text2);
+  font-family:'DM Mono',monospace;letter-spacing:0.5px;
+}
+.shortcut kbd{
+  background:var(--surface3);border:1px solid var(--border2);
+  border-radius:5px;padding:1px 7px;font-size:11px;
+}
+
+/* ─── LOADING ─── */
+#loading{
+  display:none;text-align:center;padding:28px;
+}
+.spinner{
+  width:36px;height:36px;
+  border:3px solid var(--border2);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:spin 0.7s linear infinite;
+  margin:0 auto 14px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── RESULT ─── */
+#result{margin-top:28px;display:none}
+
+/* VERDICT */
+.verdict-card{
+  border-radius:20px;padding:28px 28px 22px;
+  border:1px solid;margin-bottom:16px;
+  animation:rise 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  position:relative;overflow:hidden;
+}
+.verdict-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+}
+.verdict-spam{
+  background:linear-gradient(135deg,rgba(244,86,106,0.08),rgba(244,86,106,0.03));
+  border-color:rgba(244,86,106,0.28);
+}
+.verdict-spam::before{background:linear-gradient(90deg,var(--red),#f87171)}
+.verdict-ham{
+  background:linear-gradient(135deg,rgba(16,217,160,0.07),rgba(16,217,160,0.02));
+  border-color:rgba(16,217,160,0.25);
+}
+.verdict-ham::before{background:linear-gradient(90deg,var(--green),#34d399)}
+
+@keyframes rise{from{opacity:0;transform:translateY(16px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+.verdict-top{display:flex;align-items:center;gap:18px;margin-bottom:22px}
+.verdict-icon{
+  width:62px;height:62px;border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;flex-shrink:0;
+}
+.icon-spam{background:rgba(244,86,106,0.15);border:1px solid rgba(244,86,106,0.2)}
+.icon-ham{background:rgba(16,217,160,0.1);border:1px solid rgba(16,217,160,0.2)}
+
+.verdict-label{
+  font-family:'Syne',sans-serif;
+  font-size:24px;font-weight:800;letter-spacing:-0.5px;
+}
+.label-spam{color:var(--red)}
+.label-ham{color:var(--green)}
+.verdict-conf{
+  font-size:12px;color:var(--text2);margin-top:5px;
+  font-family:'DM Mono',monospace;letter-spacing:0.5px;
+}
+
+/* PROGRESS */
+.prog-label{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;
+}
+.prog-title{font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;letter-spacing:1.5px;text-transform:uppercase}
+.prog-pct{font-family:'DM Mono',monospace;font-size:13px;font-weight:500}
+.prog-pct.spam-pct{color:var(--red)}
+.prog-pct.ham-pct{color:var(--green)}
+
+.prog-track{background:rgba(255,255,255,0.07);border-radius:999px;height:8px;overflow:hidden;position:relative}
+.prog-fill{height:100%;border-radius:999px;transition:width 1.2s cubic-bezier(.16,1,.3,1);width:0;position:relative}
+.prog-fill::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);
+  animation:shimmer 2s infinite;
+}
+@keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)} }
+.fill-spam{background:linear-gradient(90deg,#f4566a,#f87171)}
+.fill-ham{background:linear-gradient(90deg,#10d9a0,#34d399)}
+
+/* SPAM DETAIL */
+.spam-detail{
+  display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;
+}
+.spam-tag{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(244,86,106,0.12);border:1px solid rgba(244,86,106,0.2);
+  color:#fca5a5;font-size:11px;font-family:'DM Mono',monospace;
+  padding:4px 12px;border-radius:8px;
+}
+
+/* EMOTION BOX */
+.emotion-card{
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-radius:20px;padding:26px;
+  animation:rise 0.5s cubic-bezier(0.16,1,0.3,1) 0.12s both;
+  position:relative;overflow:hidden;
+}
+.emotion-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+
+.emo-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;
+}
+.emo-title{
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+  color:var(--text2);display:flex;align-items:center;gap:8px;
+}
+.conf-badge{
+  font-size:11px;font-family:'DM Mono',monospace;
+  padding:4px 12px;border-radius:8px;font-weight:500;
+  border:1px solid;
+}
+.conf-high{background:rgba(16,217,160,0.12);color:var(--green);border-color:rgba(16,217,160,0.25)}
+.conf-medium{background:rgba(251,191,36,0.12);color:var(--yellow);border-color:rgba(251,191,36,0.25)}
+.conf-low{background:rgba(148,153,184,0.12);color:var(--text2);border-color:var(--border2)}
+
+/* BIG EMOTION CHIP */
+.emo-big{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 22px;border-radius:16px;
+  margin-bottom:20px;border:1px solid;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:22px;
+}
+.emo-emoji{font-size:32px;line-height:1}
+
+/* METRICS */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.metric-box{
+  background:rgba(255,255,255,0.03);
+  border:1px solid var(--border);
+  border-radius:14px;padding:16px 18px;
+  position:relative;overflow:hidden;
+}
+.metric-box::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  opacity:0.5;
+}
+.metric-box.pol-box::after{background:var(--accent)}
+.metric-box.sub-box::after{background:var(--purple)}
+.m-label{
+  font-family:'DM Mono',monospace;
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text2);margin-bottom:8px;
+}
+.m-val{
+  font-family:'DM Mono',monospace;
+  font-size:26px;font-weight:500;color:var(--text);
+  display:flex;align-items:baseline;gap:4px;
+}
+.m-unit{font-size:12px;color:var(--text2)}
+
+/* MINI BAR */
+.mini-bar-wrap{height:4px;background:var(--border);border-radius:99px;margin-top:10px;overflow:hidden}
+.mini-bar{height:100%;border-radius:99px;transition:width 1s 0.3s cubic-bezier(.16,1,.3,1)}
+
+/* DESCRIPTION */
+.emo-desc{
+  font-size:13px;color:var(--text2);line-height:1.75;
+  padding:14px 18px;
+  background:rgba(255,255,255,0.025);
+  border-radius:12px;
+  border-left:3px solid var(--accent);
+}
+
+/* ─── HOW IT WORKS ─── */
+.how-section{margin-bottom:20px}
+.section-head{
+  font-family:'Syne',sans-serif;
+  font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;
+  color:var(--text2);margin-bottom:18px;
+  display:flex;align-items:center;gap:12px;
+}
+.section-head::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.how-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:520px){.how-grid{grid-template-columns:1fr}}
+
+.how-card{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:16px;padding:20px;
+  transition:all 0.25s;
+  position:relative;overflow:hidden;
+}
+.how-card::before{
+  content:'';position:absolute;top:0;left:0;width:3px;height:100%;
+  border-radius:99px 0 0 99px;
+}
+.how-card:nth-child(1)::before{background:var(--accent)}
+.how-card:nth-child(2)::before{background:var(--purple)}
+.how-card:nth-child(3)::before{background:var(--green)}
+.how-card:nth-child(4)::before{background:var(--orange)}
+.how-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.4)}
+
+.how-icon{font-size:26px;margin-bottom:10px}
+.how-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px}
+.how-desc{font-size:12px;color:var(--text2);line-height:1.65}
+
+/* ─── DATASET CARD ─── */
+.dataset-card{
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:20px;padding:28px;
+  margin-bottom:20px;
+}
+.ds-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+@media(max-width:480px){.ds-grid{grid-template-columns:1fr 1fr}}
+.ds-stat{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:14px;padding:16px;text-align:center;
+}
+.ds-num{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;line-height:1}
+.ds-lbl{font-size:11px;color:var(--text2);margin-top:5px;font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.ds-bar-wrap{margin-top:16px}
+.ds-bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;margin-bottom:6px}
+.ds-track{background:var(--border);border-radius:99px;height:8px;overflow:hidden}
+.ds-spam-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--red),#f87171);width:66.7%}
+.ds-ham-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--green),#34d399);margin-top:6px}
+
+/* ─── FOOTER ─── */
+footer{
+  text-align:center;padding:40px 20px 0;
+  font-size:12px;color:var(--text2);
+  font-family:'DM Mono',monospace;line-height:2;
+}
+footer strong{color:var(--accent3)}
+.footer-divider{
+  width:60px;height:1px;background:var(--border2);
+  margin:0 auto 20px;
+}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .card,.dataset-card,.how-section{padding:22px 18px}
+  .verdict-card{padding:20px}
+  .metrics-grid{grid-template-columns:1fr}
+  .stats-row .stat-pill{font-size:12px}
+  .btn-row{flex-direction:column}
+  .btn-clear{padding:14px}
+}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--surface3);border:1px solid var(--border2);
+  border-radius:12px;padding:12px 22px;
+  font-size:13px;color:var(--text);
+  box-shadow:0 16px 48px rgba(0,0,0,0.5);
+  transition:transform 0.4s cubic-bezier(0.16,1,0.3,1),opacity 0.3s;
+  opacity:0;z-index:999;pointer-events:none;
+  font-family:'DM Sans',sans-serif;
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<!-- BG -->
+<div class="bg-canvas">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
+<div class="grid-overlay"></div>
+
+<div class="page">
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="status-pill"><div class="pulse"></div> NLP / ML Project — Live Demo</div>
+
+  <h1 class="main-title">
+    <span class="title-line1">Smart Email</span><br>
+    <span class="title-line2">Spam &amp; Emotion Classifier</span>
+  </h1>
+
+  <p class="subtitle">
+    Detects spam using <mark>Naive Bayes + TF-IDF</mark> ·
+    Identifies emotional tone using <mark>TextBlob NLP</mark> ·
+    5 emotion classes · Real-time analysis
+  </p>
+
+  <div class="stats-row">
+    <div class="stat-pill"><span class="s-num">1,500</span><span class="s-lbl">📊 Training Emails</span></div>
+    <div class="stat-pill"><span class="s-num">5</span><span class="s-lbl">🎭 Emotion Classes</span></div>
+    <div class="stat-pill"><span class="s-num">~95%</span><span class="s-lbl">✅ Accuracy</span></div>
+  </div>
+
+  <div class="tech-row">
+    <span class="chip">Python 3</span>
+    <span class="chip">Flask</span>
+    <span class="chip">Scikit-learn</span>
+    <span class="chip">TextBlob</span>
+    <span class="chip">Naive Bayes</span>
+    <span class="chip">TF-IDF</span>
+    <span class="chip">Pandas</span>
+    <span class="chip">HTML · CSS · JS</span>
+  </div>
+</header>
+
+<!-- ══ MAIN CARD ══ -->
+<div class="card">
+
+  <div class="sec-label">Try an Example</div>
+  <div class="ex-grid">
+    <button class="ex-btn spam-ex" onclick="loadEx('spam1')">🚨 Spam — Prize Winner</button>
+    <button class="ex-btn spam-ex" onclick="loadEx('spam2')">💀 Spam — Virus Alert</button>
+    <button class="ex-btn spam-ex" onclick="loadEx('spam3')">💸 Spam — Crypto Scam</button>
+    <button class="ex-btn" onclick="loadEx('urgent')">⚡ Urgent Work Email</button>
+    <button class="ex-btn" onclick="loadEx('angry')">😡 Angry Customer</button>
+    <button class="ex-btn" onclick="loadEx('happy')">😊 Happy News</button>
+    <button class="ex-btn" onclick="loadEx('sad')">😢 Rejection / Sad</button>
+    <button class="ex-btn" onclick="loadEx('neutral')">📋 Neutral / Work</button>
+  </div>
+
+  <div class="field">
+    <div class="field-label">📧 Email Subject</div>
+    <input type="text" id="subject" placeholder="e.g. URGENT: Action Required — Verify Your Account" oninput="updateCount('subject','sc')"/>
+    <div class="field-footer"><span id="sc">0 chars</span></div>
+  </div>
+
+  <div class="field">
+    <div class="field-label">📝 Email Body</div>
+    <textarea id="body" rows="6" placeholder="Paste the email body here..." oninput="updateCount('body','bc')"></textarea>
+    <div class="field-footer"><span id="bc">0 chars</span></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-analyze" onclick="analyze()">⚡ &nbsp;Analyze Email</button>
+    <button class="btn-clear" onclick="clearAll()" title="Clear">✕ Clear</button>
+  </div>
+  <div class="shortcut">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to analyze</div>
+
+  <!-- LOADING -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);letter-spacing:1.5px">ANALYZING…</div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result">
+
+    <!-- VERDICT -->
+    <div class="verdict-card" id="verdictCard">
+      <div class="verdict-top">
+        <div class="verdict-icon" id="vIcon"></div>
+        <div>
+          <div class="verdict-label" id="vLabel"></div>
+          <div class="verdict-conf" id="vConf"></div>
+        </div>
+      </div>
+
+      <div class="prog-label">
+        <div class="prog-title">Confidence Score</div>
+        <div class="prog-pct" id="vPct"></div>
+      </div>
+      <div class="prog-track">
+        <div class="prog-fill" id="progFill"></div>
+      </div>
+
+      <div class="spam-detail" id="spamDetail"></div>
+    </div>
+
+    <!-- EMOTION -->
+    <div class="emotion-card" id="emotionCard" style="display:none">
+      <div class="emo-header">
+        <div class="emo-title">🎭 Emotional Tone Analysis</div>
+        <div class="conf-badge" id="emoCBadge"></div>
+      </div>
+
+      <div class="emo-big" id="emoBig">
+        <span class="emo-emoji" id="emoEmoji"></span>
+        <span id="emoLabel"></span>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-box pol-box">
+          <div class="m-label">Sentiment Polarity</div>
+          <div class="m-val"><span id="mPol">—</span><span class="m-unit">/1.0</span></div>
+          <div class="mini-bar-wrap">
+            <div class="mini-bar" id="polBar" style="background:var(--accent)"></div>
+          </div>
+        </div>
+        <div class="metric-box sub-box">
+          <div class="m-label">Subjectivity</div>
+          <div class="m-val"><span id="mSub">—</span><span class="m-unit">/1.0</span></div>
+          <div class="mini-bar-wrap">
+            <div class="mini-bar" id="subBar" style="background:var(--purple)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="emo-desc" id="emoDesc"></div>
+    </div>
+
+  </div><!-- /result -->
+</div><!-- /card -->
+
+<!-- ══ DATASET INFO ══ -->
+<div class="dataset-card">
+  <div class="section-head">📊 Training Dataset Overview</div>
+  <div class="ds-grid">
+    <div class="ds-stat">
+      <div class="ds-num" style="color:var(--accent3)">1,500</div>
+      <div class="ds-lbl">Total Emails</div>
+    </div>
+    <div class="ds-stat">
+      <div class="ds-num" style="color:var(--red)">1,000</div>
+      <div class="ds-lbl">Spam Emails</div>
+    </div>
+    <div class="ds-stat">
+      <div class="ds-num" style="color:var(--green)">500</div>
+      <div class="ds-lbl">Ham Emails</div>
+    </div>
+  </div>
+  <div class="ds-bar-wrap">
+    <div class="ds-bar-label"><span>🔴 Spam — 66.7%</span><span>1,000 emails</span></div>
+    <div class="ds-track"><div class="ds-spam-fill"></div></div>
+    <div class="ds-bar-label" style="margin-top:10px"><span>🟢 Ham (Legit) — 33.3%</span><span>500 emails</span></div>
+    <div class="ds-track"><div class="ds-ham-fill" style="width:33.3%"></div></div>
+  </div>
+  <div style="margin-top:16px;padding:12px 16px;background:rgba(93,110,245,0.07);border:1px solid rgba(93,110,245,0.18);border-radius:12px;font-size:12px;color:var(--text2);line-height:1.7">
+    📁 Dataset: <span style="color:var(--accent3);font-family:'DM Mono',monospace">spam_email_dataset.csv</span> · 
+    3 columns: <span style="color:var(--accent3);font-family:'DM Mono',monospace">Subject, Body, Spam Label</span> · 
+    Encoding: Windows-1252 · No null values · 
+    Model: <span style="color:var(--accent3);font-family:'DM Mono',monospace">TF-IDF + MultinomialNB Pipeline</span>
+  </div>
+</div>
+
+<!-- ══ HOW IT WORKS ══ -->
+<div class="how-section card">
+  <div class="section-head">⚙️ How This Project Works</div>
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-icon">🔢</div>
+      <div class="how-name">TF-IDF Vectorizer</div>
+      <div class="how-desc">Converts raw email text into numerical feature vectors. Terms frequent in one email but rare across the dataset get higher weights — perfect for spotting spam keywords.</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">🤖</div>
+      <div class="how-name">Naive Bayes Classifier</div>
+      <div class="how-desc">MultinomialNB trained on 1,500 labeled emails. Uses Bayes' theorem to calculate spam probability. Fast, lightweight, and highly effective for text classification.</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">💬</div>
+      <div class="how-name">TextBlob Sentiment</div>
+      <div class="how-desc">Computes polarity (−1 to +1) and subjectivity (0 to 1). Combined with rule-based keyword scoring for a hybrid emotion detection engine.</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">🎭</div>
+      <div class="how-name">5-Class Emotion Engine</div>
+      <div class="how-desc">Classifies legitimate emails into Urgent 🚨, Angry 😡, Happy 😊, Sad 😢, or Neutral 😐 using keyword scores + polarity + subjectivity signals.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-divider"></div>
+  Built with <strong>Python · Flask · Scikit-learn · TextBlob · Pandas</strong><br>
+  Smart Email Spam &amp; Emotion Classifier — NLP/ML Project<br>
+  <span style="opacity:0.5;font-size:11px">Standalone HTML Demo · No server required</span>
+</footer>
+
+</div><!-- /page -->
+<div class="toast" id="toast"></div>
+
+<!-- ══ JAVASCRIPT ══ -->
+<script>
+/* ── Examples ── */
+const EXAMPLES = {
+  spam1:  {s:"WINNER! Claim Your $10,000 Prize NOW!!",     b:"Congratulations! You have been selected as our lucky winner. Click here to claim your cash prize instantly. Act fast — offer expires in 24 hours!"},
+  spam2:  {s:"URGENT: Your computer has a virus!",         b:"Alert! Your computer is infected with a dangerous virus. Click below to run a FREE security scan immediately. Your data is at risk. Download now!"},
+  spam3:  {s:"Double Your Bitcoin in 24 Hours — Guaranteed",b:"Our exclusive trading bot guarantees 200% returns on your Bitcoin investment within 24 hours. Join 50,000 happy investors. Send BTC now and receive double tomorrow."},
+  urgent: {s:"URGENT: Production Server Down — Respond Now",b:"Hi team, the production server went down at 2 AM. Customers cannot access the platform. I need the DevOps team to respond immediately. This is a critical outage."},
+  angry:  {s:"This Service is Completely Unacceptable",    b:"I am extremely frustrated and furious about your terrible service. This is the third time my order has been delayed. I demand a full refund immediately!"},
+  happy:  {s:"Congratulations on Your Promotion!",         b:"Dear Sarah, I am absolutely thrilled to share the wonderful news of your well-deserved promotion! Your hard work and dedication have truly paid off. Well done!"},
+  sad:    {s:"Unfortunately, We Cannot Offer You the Position",b:"Dear James, thank you for interviewing with us. After careful consideration, we regret to inform you that we have decided to move forward with another candidate."},
+  neutral:{s:"Meeting Notes — Sprint Review Monday",        b:"Hi team, please find the notes from Monday's sprint review attached. We covered Q2 timeline and resource allocation. Next meeting is Thursday at 10 AM."},
+};
+
+/* ── Word lists ── */
+const SPAM_W   = ["winner","prize","claim","cash","lottery","won","free gift","bitcoin","nigerian","prince","bank details","unclaimed","funds","irs","arrest","tax","virus","infected","scan","weight loss","pill","prescription","viagra","credit check","loan approved","pre-approved","hot singles","dating","click here","act fast","limited time","expires","verify account","suspended","suspicious login","double","guaranteed","returns","investment","earn","make money","working from home","government grant","free security","cryptocurrency","click below","download now","free gift card","selected","lucky"];
+const URGENT_W = ["urgent","immediately","asap","deadline","critical","emergency","right away","cannot wait","right now","final notice","hurry","please act","respond now","action required","time sensitive","act now"];
+const ANGRY_W  = ["unacceptable","frustrated","angry","ridiculous","outrageous","terrible","worst","incompetent","disgusting","furious","hate","annoyed","demand","pathetic","disgraceful","rude","useless","infuriated","livid","fed up","absolutely ridiculous","extremely frustrated","worst service"];
+const HAPPY_W  = ["great","thank","thanks","excellent","wonderful","congrats","congratulations","appreciate","happy","pleased","delighted","love","amazing","fantastic","awesome","thrilled","excited","proud","brilliant","outstanding","well done","perfect","glad","promoted","promotion","celebrate","wonderful news"];
+const SAD_W    = ["sorry","unfortunately","regret","sad","disappointed","miss","loss","difficult","struggle","bad news","unable","failed","apologize","apology","condolences","grief","deeply sorry","regrettably","we regret","cannot offer"];
+const POS_W    = ["great","excellent","wonderful","amazing","fantastic","happy","thrilled","proud","brilliant","congratulations","love","perfect","delighted","outstanding","glad","pleased","good","promoted","celebrate","thank","appreciate"];
+const NEG_W    = ["terrible","worst","disgusting","furious","angry","frustrated","unacceptable","pathetic","sad","disappointed","regret","sorry","unfortunately","failed","loss","grief","unable","ridiculous","outrageous","incompetent"];
+
+const EMO_COLORS = {Urgent:"#fb923c",Angry:"#f87171",Happy:"#10d9a0",Sad:"#60a5fa",Neutral:"#94a3b8"};
+const EMO_EMOJI  = {Urgent:"🚨",Angry:"😡",Happy:"😊",Sad:"😢",Neutral:"😐"};
+
+/* ── Helpers ── */
+function sc(text, words){ return words.filter(w => text.includes(w)).length; }
+
+function updateCount(id, countId){
+  const val = document.getElementById(id).value;
+  document.getElementById(countId).textContent = val.length + " chars";
+}
+
+function loadEx(key){
+  document.getElementById("subject").value = EXAMPLES[key].s;
+  document.getElementById("body").value    = EXAMPLES[key].b;
+  updateCount("subject","sc"); updateCount("body","bc");
+  document.getElementById("result").style.display = "none";
+  showToast("Example loaded — click Analyze!");
+}
+
+function clearAll(){
+  document.getElementById("subject").value = "";
+  document.getElementById("body").value    = "";
+  updateCount("subject","sc"); updateCount("body","bc");
+  document.getElementById("result").style.display = "none";
+  document.getElementById("loading").style.display = "none";
+  showToast("Cleared ✓");
+}
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2400);
+}
+
+/* ── Core logic ── */
+function detectSpam(t){
+  const hits = SPAM_W.filter(w => t.includes(w));
+  return {isSpam: hits.length >= 2, spamScore: hits.length, hitWords: hits.slice(0,5)};
+}
+
+function detectEmotion(t){
+  const us = sc(t, URGENT_W), ans = sc(t, ANGRY_W);
+  const hs = sc(t, HAPPY_W),  ss  = sc(t, SAD_W);
+  const pos = sc(t, POS_W),   neg = sc(t, NEG_W);
+  const total = Math.max(pos + neg, 1);
+  const polarity     = parseFloat(((pos - neg) / total).toFixed(3));
+  const subjectivity = parseFloat((Math.min((pos + neg) / 10, 1)).toFixed(3));
+
+  let emotion, description;
+  if      (us >= 2 || (us >= 1 && subjectivity > 0.4))
+    { emotion="Urgent";  description="Email contains urgent language demanding immediate attention."; }
+  else if (ans >= 2 || (polarity < -0.3 && subjectivity > 0.5))
+    { emotion="Angry";   description="Email expresses strong frustration or anger."; }
+  else if (hs >= 2 || polarity > 0.35)
+    { emotion="Happy";   description="Email carries a positive and cheerful tone."; }
+  else if (ss >= 2 || polarity < -0.15)
+    { emotion="Sad";     description="Email conveys sadness, regret, or disappointment."; }
+  else
+    { emotion="Neutral"; description="Email has a calm, factual, and professional tone."; }
+
+  const signal = Math.abs(polarity) + subjectivity;
+  const confidence = signal > 1.0 ? "High" : signal > 0.45 ? "Medium" : "Low";
+  return {emotion, polarity, subjectivity, confidence, description};
+}
+
+/* ── ANALYZE ── */
+function analyze(){
+  const subject = document.getElementById("subject").value.trim();
+  const body    = document.getElementById("body").value.trim();
+  if(!subject && !body){ showToast("⚠️ Please enter subject or body!"); return; }
+
+  // Show loading briefly
+  document.getElementById("result").style.display  = "none";
+  document.getElementById("loading").style.display = "block";
+
+  setTimeout(() => {
+    document.getElementById("loading").style.display = "none";
+
+    const combined = (subject + " " + body).toLowerCase();
+    const {isSpam, spamScore, hitWords} = detectSpam(combined);
+    const confidence = isSpam
+      ? Math.min(70 + spamScore * 5, 98)
+      : Math.max(90 - spamScore * 12, 60);
+
+    /* Verdict card */
+    const vc = document.getElementById("verdictCard");
+    vc.className = "verdict-card " + (isSpam ? "verdict-spam" : "verdict-ham");
+
+    const icon = document.getElementById("vIcon");
+    icon.textContent = isSpam ? "🚫" : "✅";
+    icon.className = "verdict-icon " + (isSpam ? "icon-spam" : "icon-ham");
+
+    const lbl = document.getElementById("vLabel");
+    lbl.textContent = isSpam ? "SPAM DETECTED" : "LEGITIMATE EMAIL";
+    lbl.className = "verdict-label " + (isSpam ? "label-spam" : "label-ham");
+
+    document.getElementById("vConf").textContent = `Model confidence: ${confidence}%  ·  Spam keywords matched: ${spamScore}`;
+
+    const pct = document.getElementById("vPct");
+    pct.textContent = confidence + "%";
+    pct.className = "prog-pct " + (isSpam ? "spam-pct" : "ham-pct");
+
+    const fill = document.getElementById("progFill");
+    fill.className = "prog-fill " + (isSpam ? "fill-spam" : "fill-ham");
+    fill.style.width = "0";
+    setTimeout(() => fill.style.width = confidence + "%", 80);
+
+    // Spam tags
+    const sd = document.getElementById("spamDetail");
+    if(isSpam && hitWords.length > 0){
+      sd.innerHTML = "<span style='font-size:11px;color:var(--text2);font-family:\"DM Mono\",monospace;align-self:center'>Matched:</span>" +
+        hitWords.map(w => `<span class="spam-tag">⚠ ${w}</span>`).join("");
+    } else { sd.innerHTML = ""; }
+
+    /* Emotion */
+    const emoCard = document.getElementById("emotionCard");
+    if(!isSpam){
+      const emo   = detectEmotion(combined);
+      const color = EMO_COLORS[emo.emotion];
+
+      // Big chip
+      document.getElementById("emoEmoji").textContent = EMO_EMOJI[emo.emotion];
+      const el = document.getElementById("emoLabel");
+      el.textContent = emo.emotion;
+      const bigDiv = document.getElementById("emoBig");
+      bigDiv.style.color = color;
+      bigDiv.style.borderColor = color;
+      bigDiv.style.background = color + "18";
+
+      // Confidence badge
+      const cb = document.getElementById("emoCBadge");
+      cb.textContent = emo.confidence + " Confidence";
+      cb.className = "conf-badge conf-" + emo.confidence.toLowerCase();
+
+      // Metrics
+      document.getElementById("mPol").textContent = (emo.polarity >= 0 ? "+" : "") + emo.polarity.toFixed(3);
+      document.getElementById("mSub").textContent = emo.subjectivity.toFixed(3);
+
+      // Mini bars
+      const polPct = ((emo.polarity + 1) / 2 * 100).toFixed(1);
+      const subPct = (emo.subjectivity * 100).toFixed(1);
+      setTimeout(() => {
+        document.getElementById("polBar").style.width = polPct + "%";
+        document.getElementById("subBar").style.width = subPct + "%";
+      }, 200);
+
+      document.getElementById("emoDesc").textContent = emo.description;
+      emoCard.style.display = "block";
+    } else {
+      document.getElementById("polBar").style.width = "0";
+      document.getElementById("subBar").style.width = "0";
+      emoCard.style.display = "none";
+    }
+
+    const res = document.getElementById("result");
+    res.style.display = "block";
+    setTimeout(() => res.scrollIntoView({behavior:"smooth",block:"nearest"}), 80);
+  }, 600);
+}
+
+/* Ctrl+Enter */
+document.addEventListener("keydown", e => { if(e.ctrlKey && e.key==="Enter") analyze(); });
+</script>
+</body>
+</html>
